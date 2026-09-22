@@ -84,3 +84,4 @@ const handleShutdown = (signal: string) => {
 process.on('SIGINT', () => handleShutdown('SIGINT'));
 process.on('SIGTERM', () => handleShutdown('SIGTERM'));
 
+export default app;
