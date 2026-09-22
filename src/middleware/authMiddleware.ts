@@ -14,13 +14,38 @@ export const generateToken = (id: string | mongoose.Types.ObjectId): string => {
   });
 };
 
+export const authCookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  maxAge: 30 * 24 * 60 * 60 * 1000,
+  path: '/'
+};
+
+export const clearAuthCookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  path: '/'
+};
+
+const getCookie = (cookieHeader: string | undefined, name: string): string | undefined => {
+  const cookie = cookieHeader
+    ?.split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`));
+  return cookie ? decodeURIComponent(cookie.slice(name.length + 1)) : undefined;
+};
+
 // Protect routes - User authorization
 export const protect = async (req: Request, res: Response, next: NextFunction) => {
-  let token: string | undefined;
+  const token = getCookie(req.headers.cookie, 'auth_token') ||
+    (req.headers.authorization?.startsWith('Bearer ')
+      ? req.headers.authorization.split(' ')[1]
+      : undefined);
 
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+  if (token) {
     try {
-      token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(
         token,
         process.env.JWT_SECRET || ''
@@ -41,10 +66,7 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
     }
   }
 
-  if (!token) {
-    res.status(401).json({ message: 'Not authorized, no token provided' });
-    return;
-  }
+  res.status(401).json({ message: 'Not authorized, no token provided' });
 };
 
 // Admin middleware - Require isAdmin flag

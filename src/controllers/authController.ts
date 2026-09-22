@@ -1,9 +1,30 @@
 import { Request, Response } from 'express';
 import User from '../models/User.js';
-import { generateToken } from '../middleware/authMiddleware.js';
+import {
+  authCookieOptions,
+  clearAuthCookieOptions,
+  generateToken
+} from '../middleware/authMiddleware.js';
 import { OAuth2Client } from 'google-auth-library';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+const sendAuthResponse = (res: Response, status: number, user: any): void => {
+  res.cookie('auth_token', generateToken(user._id), authCookieOptions);
+  res.status(status).json({
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    profilePicture: user.profilePicture,
+    isAdmin: user.isAdmin,
+    addresses: user.addresses
+  });
+};
+
+export const logoutUser = (_req: Request, res: Response): void => {
+  res.clearCookie('auth_token', clearAuthCookieOptions);
+  res.status(204).send();
+};
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -30,13 +51,7 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     });
 
     if (user) {
-      res.status(201).json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        isAdmin: user.isAdmin,
-        token: generateToken(user._id)
-      });
+      sendAuthResponse(res, 201, user);
     } else {
       res.status(400).json({ message: 'Invalid user data received' });
     }
@@ -73,29 +88,13 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
 
       console.log(`[Auth] Auto-registered unique user profile in MongoDB: ${user.email} (${user._id})`);
 
-      res.status(201).json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        profilePicture: user.profilePicture,
-        isAdmin: user.isAdmin,
-        addresses: user.addresses,
-        token: generateToken(user._id)
-      });
+      sendAuthResponse(res, 201, user);
       return;
     }
 
     // Existing user: check password
     if (await user.matchPassword(password)) {
-      res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        profilePicture: user.profilePicture,
-        isAdmin: user.isAdmin,
-        addresses: user.addresses,
-        token: generateToken(user._id)
-      });
+      sendAuthResponse(res, 200, user);
     } else {
       res.status(401).json({ message: 'Incorrect password for this email account' });
     }
@@ -157,15 +156,7 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
       });
     }
 
-    res.json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      profilePicture: user.profilePicture,
-      isAdmin: user.isAdmin,
-      addresses: user.addresses,
-      token: generateToken(user._id)
-    });
+    sendAuthResponse(res, 200, user);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -190,13 +181,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
         });
       }
 
-      res.json({
-        _id: adminUser._id,
-        name: adminUser.name,
-        email: adminUser.email,
-        isAdmin: true,
-        token: generateToken(adminUser._id)
-      });
+      sendAuthResponse(res, 200, { ...adminUser.toObject(), isAdmin: true });
     } else {
       res.status(401).json({ message: 'Invalid admin credentials' });
     }
