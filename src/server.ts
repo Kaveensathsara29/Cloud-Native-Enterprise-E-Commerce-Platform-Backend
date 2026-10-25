@@ -10,6 +10,8 @@ import userRoutes from './routes/userRoutes.js';
 import productRoutes from './routes/productRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import promoRoutes from './routes/promoRoutes.js';
+import driveRoutes from './routes/driveRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -60,6 +62,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/promos', promoRoutes);
+app.use('/api/drive', driveRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Error Handling Middleware
 app.use(notFound);
